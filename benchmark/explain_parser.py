@@ -13,6 +13,10 @@ class ExplainResult:
     scan_type: str
     shared_hit_blocks: int
     shared_read_blocks: int
+    planning_time_ms: float
+    actual_rows: int
+    actual_loops: int
+    rows_removed_by_filter: int
 
 
 def parse_explain_json(explain_rows: list) -> ExplainResult:
@@ -24,8 +28,9 @@ def parse_explain_json(explain_rows: list) -> ExplainResult:
     if not plans:
         raise ValueError(f"Kết quả EXPLAIN JSON không đúng định dạng mong đợi: {explain_rows!r}")
 
-    plan = plans[0]["Plan"]
-    execution_time = plans[0]["Execution Time"]
+    plan = plans[0].get("Plan", {})
+    execution_time = plans[0].get("Execution Time", 0)
+    planning_time = plans[0].get("Planning Time", 0)
 
     # Find the first scan node in the plan tree (breadth-first).
     scan_node = plan
@@ -39,9 +44,14 @@ def parse_explain_json(explain_rows: list) -> ExplainResult:
             scan_type = node_type
             break
         queue.extend(node.get("Plans", []))
+    
     return ExplainResult(
-        execution_time_ms=float(execution_time),
+        execution_time_ms=float(execution_time or 0),
         scan_type=scan_type,
-        shared_hit_blocks=int(scan_node.get("Shared Hit Blocks", 0)),
-        shared_read_blocks=int(scan_node.get("Shared Read Blocks", 0)),
+        shared_hit_blocks=int(scan_node.get("Shared Hit Blocks") or 0),
+        shared_read_blocks=int(scan_node.get("Shared Read Blocks") or 0),
+        planning_time_ms=float(planning_time or 0),
+        actual_rows=int(scan_node.get("Actual Rows") or 0),
+        actual_loops=int(scan_node.get("Actual Loops") or 0),
+        rows_removed_by_filter=int(scan_node.get("Rows Removed by Filter") or 0),
     )

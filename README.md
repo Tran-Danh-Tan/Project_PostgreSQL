@@ -1,8 +1,7 @@
 # PostgreSQL Benchmark — PK vs pk_clone
+Dự án là một bài **performance investigation** trên PostgreSQL, không chỉ đo thời gian query. Flow: **Problem → Assumption → Metrics → Verification → Solution → Comparison → Conclusion**.
 
-Dự án này là bài tập nhằm kiểm chứng hiệu năng truy vấn trên PostgreSQL. 
-
-**Mục tiêu giải quyết câu hỏi:** 
+**Mục tiêu giải quyết câu hỏi:**
 Nếu có 1 bảng CSDL gồm 1 cột PK (`id`) và 1 cột `pk_clone` có giá trị giống hệt PK. Khi truy xuất bằng điều kiện trên cột PK thì cực kỳ nhanh. Vậy truy xuất trên `pk_clone` có nhanh tương tự hay không (vì giá trị 2 cột hoàn toàn giống nhau)? Nếu chậm thì làm sao để nó nhanh và tại sao?
 
 Dự án được setup dưới dạng một ứng dụng Python sử dụng **uv build tool**, tự động sinh dữ liệu (các mức 1k, 100k, 1M, 10M rows), chạy benchmark và xuất ra báo cáo HTML trực quan.
@@ -39,7 +38,13 @@ uv sync
 ```bash
 uv run benchmark run
 ```
-*Lệnh này sẽ tự động làm mọi thứ: kết nối DB, tạo bảng, sinh dữ liệu ở 4 mức (1K, 100K, 1M, 10M rows), chạy bài test bằng `EXPLAIN ANALYZE` và cuối cùng xuất ra kết quả.*
+*Lệnh này kết nối DB, tạo bảng, sinh dữ liệu ở 4 mức (1K, 100K, 1M, 10M rows), reproduce vấn đề, thu thập metrics bằng `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`, tạo index, đo lại và xuất CSV/HTML. Mỗi state có 1 warm-up (không tính) và 10 measured runs với cùng target IDs trong từng dataset.*
+
+```bash
+uv build
+```
+
+Các lệnh hiện có: `uv run benchmark seed`, `uv run benchmark`, `uv run benchmark report` (sinh lại từ raw CSV), `uv run benchmark clean`.
 
 ---
 
@@ -49,17 +54,17 @@ Sau khi chạy xong lệnh trên, chương trình sẽ tự động tạo thư m
 - **Windows:** Double-click vào file `reports\benchmark_report.html` hoặc gõ `start reports\benchmark_report.html`
 - **macOS/Linux:** `open reports/benchmark_report.html`
 
-File báo cáo HTML sẽ giải thích cực kỳ chi tiết bằng biểu đồ và số liệu thực tế về việc tại sao truy vấn trên `pk_clone` lại rất chậm, giải pháp (tạo Index) và nguyên lý hoạt động đằng sau.
+Các output:
 
----
+- `reports/benchmark_raw.csv`: một dòng mỗi lần đo (dataset, state/role, run, target ID, timestamp, planning/execution time, scan type, actual rows/loops, rows removed, shared hit/read blocks). Tổng cộng 120 dòng đo cho 4 datasets × 3 states × 10 runs.
+- `reports/benchmark_results.csv`: một dòng mỗi tổ hợp dataset × state với avg/min/max execution time, avg planning time, scan type và các metric trung bình.
+- `reports/benchmark_report.html`: báo cáo điều tra, hai biểu đồ và kết luận tính từ số đo thực tế.
 
-## 💡 Tóm tắt kiến thức (Trả lời bài tập)
+## How to interpret the benchmark
+1. **Problem / Reproduce:** so sánh PK / Baseline (`WHERE id = ?`) với pk_clone WITHOUT INDEX (`WHERE pk_clone = ?`) ở từng dataset. Query duration cho biết vấn đề performance *có xuất hiện trong lần đo đó hay không*.
+2. **Assumption:** giả thuyết `pk_clone` chậm do không có index và PostgreSQL dùng Seq Scan. Chưa xem plan thì chưa kết luận.
+3. **Metrics / Root Cause Verification:** `EXPLAIN ANALYZE + BUFFERS` giúp tìm nguyên nhân. Scan Type cho biết PostgreSQL đang dùng Seq Scan, Index Scan hay Index Only Scan. Rows Removed by Filter và Buffer metrics giúp giải thích chi phí của execution plan; Actual Rows cho biết rows trả về, Shared Hit là cache của PostgreSQL, Shared Read không nhất thiết là disk I/O.
+4. **Solution / Verify Solution:** tạo `CREATE INDEX idx_benchmark_table_pk_clone ON benchmark_table(pk_clone);`, cập nhật thống kê bằng `ANALYZE`, đo lại cùng query/target IDs/method. So sánh scan type, execution time, rows removed, hit/read; không ép planner chọn index.
+5. **Final Comparison / Conclusion:** so sánh ba state theo dataset; `speedup_vs_pk = avg_no_index / avg_state` và `improvement_vs_no_index = (avg_no_index - avg_with_index) / avg_no_index × 100`. Không hiển thị tỷ lệ khi mẫu số bằng 0; không suy diễn index luôn nhanh hơn ở mọi dataset.
 
-Qua quá trình benchmark, dự án chứng minh được các luận điểm sau:
-
-1. **WHERE trên `pk_clone` (khi chưa làm gì) CỰC KỲ CHẬM:** Dù giá trị của 2 cột giống hệt nhau, PostgreSQL không hề biết điều đó. Vì `pk_clone` không có Mục lục (Index), hệ thống buộc phải quét toàn bộ bảng (`Seq Scan`) làm thời gian truy vấn tuyến tính (O(N)) thay vì dùng `Index Scan` (O(log N)) như cột Khóa chính.
-2. **Làm sao để nhanh?** Rất đơn giản, chỉ cần thêm Index cho cột đó:
-   ```sql
-   CREATE INDEX idx_benchmark_table_pk_clone ON benchmark_table(pk_clone);
-   ```
-3. **Giải thích:** Yếu tố quyết định tốc độ của một câu truy vấn `WHERE` nằm ở việc **cột điều kiện có cấu trúc Index vật lý (B-Tree) hay không**, chứ không nằm ở việc giá trị của nó có giống với Khóa chính hay không. Tạo Index xong, Query Planner sẽ thấy mục lục và sử dụng `Index Scan`, giúp tốc độ truy vấn `pk_clone` nhanh ngang ngửa với `id`.
+Kết quả phụ thuộc cache, planner và môi trường đo. Dùng raw CSV để audit từng execution, không xem giả thuyết là kết luận trước khi kiểm tra metrics.

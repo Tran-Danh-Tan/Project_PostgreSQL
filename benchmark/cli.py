@@ -9,7 +9,7 @@ import sys
 import pandas as pd
 
 from . import __version__
-from .benchmark import run_benchmark
+from .benchmark import run_benchmark, summarize_results
 from .config import DATASETS, HTML_REPORT, RAW_CSV, RESULTS_CSV, TABLE_NAME, load_db_config
 from .database import check_connection, connect
 from .seed import (
@@ -21,7 +21,7 @@ from .seed import (
     table_row_count,
     truncate_table,
 )
-from .report import save_results
+from .investigation import save_results
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -72,15 +72,7 @@ def _cmd_report(args: argparse.Namespace) -> None:
     raw = pd.read_csv(RAW_CSV) if RAW_CSV.exists() else None
     if raw is None:
         raise SystemExit(f"Chưa có {RAW_CSV}. Hãy chạy `uv run benchmark` trước.")
-    summary = (
-        raw.groupby(["dataset", "row_count", "state", "query_column", "indexed"], sort=False)
-        .agg(avg_ms=("execution_time_ms", "mean"), min_ms=("execution_time_ms", "min"),
-             max_ms=("execution_time_ms", "max"), scan_type=("scan_type", "first"),
-             shared_hit_blocks=("shared_hit_blocks", "mean"), shared_read_blocks=("shared_read_blocks", "mean"))
-        .reset_index()
-    )
-    for col in ("shared_hit_blocks", "shared_read_blocks"):
-        summary[col] = summary[col].round(1)
+    summary = summarize_results(raw)
     # Try to get pg_version from DB, but don't fail if DB is down (offline report regen)
     pg_version = "PostgreSQL (version unknown — DB offline)"
     try:

@@ -1,13 +1,13 @@
-dataset,row_count,state,query_column,indexed,avg_ms,min_ms,max_ms,scan_type,shared_hit_blocks,shared_read_blocks
-1K,1000,PK,id,Yes,0.014499999999999999,0.011,0.021,Index Scan,3.0,0.0
-1K,1000,pk_clone_no_index,pk_clone,No,0.05,0.046,0.057,Seq Scan,6.0,0.0
-1K,1000,pk_clone_indexed,pk_clone,Yes,0.0249,0.016,0.046,Index Scan,2.8,0.2
-100K,100000,PK,id,Yes,0.0125,0.011,0.018,Index Scan,3.3,0.0
-100K,100000,pk_clone_no_index,pk_clone,No,3.7735,3.192,4.244,Seq Scan,541.0,0.0
-100K,100000,pk_clone_indexed,pk_clone,Yes,0.0237,0.015,0.033,Index Scan,2.1,0.9
-1M,1000000,PK,id,Yes,0.0164,0.012,0.028,Index Scan,4.0,0.0
-1M,1000000,pk_clone_no_index,pk_clone,No,18.3722,17.658,20.543,Seq Scan,5406.0,0.0
-1M,1000000,pk_clone_indexed,pk_clone,Yes,0.0298,0.015,0.053,Index Scan,2.5,1.5
-10M,10000000,PK,id,Yes,0.0227,0.012,0.034,Index Scan,1.9,2.1
-10M,10000000,pk_clone_no_index,pk_clone,No,154.2373,149.704,174.442,Seq Scan,11145.0,42910.0
-10M,10000000,pk_clone_indexed,pk_clone,Yes,0.028999999999999998,0.013,0.069,Index Scan,1.5,2.5
+dataset,row_count,state,state_role,query_column,indexed,avg_execution_time_ms,min_execution_time_ms,max_execution_time_ms,avg_planning_time_ms,scan_type,avg_actual_rows,avg_rows_removed_by_filter,avg_shared_hit_blocks,avg_shared_read_blocks
+1K,1000,PK,baseline,id,True,0.013000000000000001,0.008,0.025,0.0242,Index Scan,1.0,0.0,3.0,0.0
+1K,1000,pk_clone_no_index,reproduce_problem,pk_clone,False,0.045700000000000005,0.034,0.066,0.0183,Seq Scan,1.0,999.0,6.0,0.0
+1K,1000,pk_clone_indexed,verify_solution,pk_clone,True,0.0168,0.009,0.03,0.0229,Index Scan,1.0,0.0,2.8,0.2
+100K,100000,PK,baseline,id,True,0.011899999999999999,0.01,0.02,0.0273,Index Scan,1.0,0.0,3.3,0.0
+100K,100000,pk_clone_no_index,reproduce_problem,pk_clone,False,2.98,2.801,3.31,0.028000000000000004,Seq Scan,1.0,99999.0,541.0,0.0
+100K,100000,pk_clone_indexed,verify_solution,pk_clone,True,0.027500000000000004,0.01,0.051,0.0217,Index Scan,1.0,0.0,2.1,0.9
+1M,1000000,PK,baseline,id,True,0.013000000000000001,0.01,0.022,0.0234,Index Scan,1.0,0.0,4.0,0.0
+1M,1000000,pk_clone_no_index,reproduce_problem,pk_clone,False,18.4374,16.578,22.24,0.049,Seq Scan,0.0,333333.0,5406.0,0.0
+1M,1000000,pk_clone_indexed,verify_solution,pk_clone,True,0.019200000000000002,0.011,0.022,0.020200000000000003,Index Scan,1.0,0.0,2.5,1.5
+10M,10000000,PK,baseline,id,True,0.0246,0.013,0.035,0.0237,Index Scan,1.0,0.0,1.9,2.1
+10M,10000000,pk_clone_no_index,reproduce_problem,pk_clone,False,141.4308,138.033,142.912,0.0446,Seq Scan,0.0,3333333.0,11144.9,42910.1
+10M,10000000,pk_clone_indexed,verify_solution,pk_clone,True,0.0205,0.011,0.03,0.023899999999999998,Index Scan,1.0,0.0,1.5,2.5

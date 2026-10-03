@@ -41,6 +41,18 @@ QUERY_COLUMN_BY_STATE = {
     STATE_PK_CLONE_INDEXED: "pk_clone",
 }
 
+STATE_ROLES: dict[str, str] = {
+    STATE_PK: "baseline",
+    STATE_PK_CLONE_NO_INDEX: "reproduce_problem",
+    STATE_PK_CLONE_INDEXED: "verify_solution",
+}
+
+STATE_ROLE_LABELS: dict[str, str] = {
+    "baseline": "Baseline",
+    "reproduce_problem": "Reproduce Problem",
+    "verify_solution": "Verify Solution",
+}
+
 
 @dataclass(frozen=True)
 class DatabaseConfig:
