@@ -271,35 +271,13 @@ def _build_conclusion(summary_df: pd.DataFrame) -> str:
 
 
 def save_results(summary_df: pd.DataFrame, raw_df: pd.DataFrame, pg_version: str) -> None:
-    """Write benchmark_results.csv, benchmark_raw.csv and benchmark_report.html."""
-    REPORTS_DIR.mkdir(exist_ok=True)
+    """Compatibility wrapper — delegate to the consolidated implementation in investigation.py.
 
-    csv_df = summary_df.copy()
-    csv_df["indexed"] = csv_df["indexed"].map({True: "Yes", False: "No"})
-    csv_df.to_csv(RESULTS_CSV, index=False)
-    logger.info("Đã ghi %s", RESULTS_CSV)
+    This function preserves the original public API used by callers but forwards
+    the actual work to `benchmark.investigation.save_results` to avoid duplicated
+    report-generation logic.
+    """
+    from .investigation import save_results as _investigation_save
 
-    raw_df.to_csv(RAW_CSV, index=False)
-    logger.info("Đã ghi %s", RAW_CSV)
-
-    html_df = summary_df.copy()
-    html_df["state_label"] = html_df["state"].map(STATE_LABELS)
-    html_df["index_label"] = html_df["indexed"].map({True: "Có", False: "Không"})
-    html_df["scan_type"] = html_df["scan_type"].map({
-        "Seq Scan": "Seq Scan (quét tuần tự)",
-        "Index Scan": "Index Scan (quét index)",
-        "Index Only Scan": "Index Only Scan (chỉ quét index)",
-    }).fillna(html_df["scan_type"])
-
-    html = Template(TEMPLATE).render(
-        pg_version=pg_version,
-        py_version=platform.python_version(),
-        timestamp=datetime.datetime.now().isoformat(timespec="seconds"),
-        dataset_sizes=", ".join(f"{k}={v:,}" for k, v in DATASETS.items()),
-        runs=RUNS_PER_COMBINATION,
-        summary=html_df.to_dict("records"),
-        chart_base64=_build_chart(summary_df),
-        analysis=_build_analysis(summary_df),
-    )
-    Path(HTML_REPORT).write_text(html, encoding="utf-8")
-    logger.info("Đã ghi %s", HTML_REPORT)
+    # Delegate the work; keep behavior identical.
+    _investigation_save(summary_df, raw_df, pg_version)
